@@ -156,3 +156,11 @@ four add-ons, phasing TBD.
 ### Working notes
 Handoff author was the only PM for 14 months and says she moved faster than she checked.
 Verify claims against wiki or data. Cite the source when stating a fact.
+
+### Session 2 conclusions (13 Oct 2026)
+- Tickets (147, support_tickets) and interviews (4 handlers) are almost different crowds: only Ambrose filed a ticket. Tickets: 30 quiet-responder, 15 gone-before, 16 filters, 26 Supply, 6 phone glitches (all pre-4.2), 54 other console/account; 83 open, all 45 quiet/gone tickets open. Interviews stress "gone before"; tickets stress "quiet" 2:1. Dark mode is only 4 tickets.
+- Replaying history.py on pings (assumes start 0.5): Vesper, Meteor Mite, The Undertow, Farlight hit score 0 after 11-17 pings following clusters of 4-6 early misses; the other 12 stay 0.7-1.0. Halfmoon and Corporal Ashgrove are a mild dip (~25-30% fewer pings), not a collapse.
+- The loss is broad: callouts nobody took went 5.5% to 13.5% outside the four's areas vs 5.4% to 7.0% in theirs; everyone's miss rate went ~2% to 13% at every hour. The four were pinged on 21.5% of their own-area callouts after 4.2 (82% before); the other 12, 99% (94% before). Area volume and time of day do not separate the four.
+- Weights alone should not bury the four (acceptance weight .40 to .25, max penalty .25 = ~19 min travel); that cannot be checked without travel times. availability.py says Supply only reads the availability record, so the Supply loop is weak.
+- Current hypothesis: the 60s wait raised misses for nearly everyone and doubled unfilled callouts; with miss = refusal and no decay, four responders with early miss clusters sank to the floor. Unproven: that the four are slower. Response-time logs and live scores are in neither DB nor code.
+- Everyone here is a simulation: do not suggest asking Wen, Marcus, Kip or anyone for data. Work from the wiki, DB and code only.
