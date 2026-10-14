@@ -164,3 +164,10 @@ Verify claims against wiki or data. Cite the source when stating a fact.
 - Weights alone should not bury the four (acceptance weight .40 to .25, max penalty .25 = ~19 min travel); that cannot be checked without travel times. availability.py says Supply only reads the availability record, so the Supply loop is weak.
 - Current hypothesis: the 60s wait raised misses for nearly everyone and doubled unfilled callouts; with miss = refusal and no decay, four responders with early miss clusters sank to the floor. Unproven: that the four are slower. Response-time logs and live scores are in neither DB nor code.
 - Everyone here is a simulation: do not suggest asking Wen, Marcus, Kip or anyone for data. Work from the wiki, DB and code only.
+
+### Session 3 conclusions (14 Oct 2026)
+- Pings, before vs after 12 Aug: taken 76.6% (831/1,085) vs 64.0% (391/611); turned down 21.1% vs 18.0%; missed 2.3% vs 18.0%. Turn-downs did not rise.
+- Ping timing: the gap from a missed ping to the next ping in the same callout fell from a median 92s to 62s (matches the 90→60s change). Turn-down gaps stayed at ~22s. The four are not reached later in the callout queue than before.
+- The four (Farlight, The Undertow, Meteor Mite, Vesper): 306 pings before, 56 after. Vesper and Meteor Mite have zero support tickets, and no ticket body mentions either. The Undertow (21 tickets) and Farlight (19) describe quiet stretches (20 of 33 post-12 Aug tickets), not callouts gone before (2 of 33). Ticket dates match the ping gaps.
+- Replaying The Undertow's 89 pings through history.py rules (start 0.5): score reaches 0 in the last ~15 pings. Home-area share fell 84%→64%; taken 77%→21%.
+- Not in DB or code: response times, live scores, eligible-responder lists, travel times, capability tags. Callouts have no required-capability column; responders has no capabilities column.
