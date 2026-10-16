@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Release 4.2: What happened, and what we do next</title>
+<style>
+  :root{
+    --night:#0B1220; --panel:#121C2E; --panel-2:#1A2740; --line:#24344F;
+    --ink:#EAF0F8; --muted:#8CA0BC;
+    --amber:#F5A524; --teal:#2BD4B4; --coral:#FF5C6C; --slate:#6E86A8;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--night); color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  body::before{ /* faint grid, like a radar screen */
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:-1;
+    background-image:
+      linear-gradient(rgba(43,212,180,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(43,212,180,.05) 1px, transparent 1px);
+    background-size:48px 48px;
+    mask-image:radial-gradient(ellipse at 50% 0%, #000 0%, transparent 70%);
+  }
+  a{color:var(--teal)}
+  nav{
+    position:sticky; top:0; z-index:10; backdrop-filter:blur(10px);
+    background:rgba(11,18,32,.82); border-bottom:1px solid var(--line);
+  }
+  nav .in{max-width:1080px; margin:0 auto; padding:12px 24px; display:flex; gap:18px; flex-wrap:wrap; font-size:13px}
+  nav a{color:var(--muted); text-decoration:none}
+  nav a:hover{color:var(--ink)}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+  section{padding:72px 0; border-bottom:1px solid var(--line)}
+  section:last-of-type{border-bottom:0}
+  .eyebrow{font-size:12px; letter-spacing:.18em; text-transform:uppercase; color:var(--teal); font-weight:700; margin:0 0 10px}
+  h1,h2,h3{line-height:1.2; margin:0}
+  h1{font-size:clamp(34px,6vw,64px); letter-spacing:-.02em}
+  h2{font-size:clamp(26px,3.6vw,38px); letter-spacing:-.01em; margin-bottom:14px}
+  h3{font-size:19px; margin-bottom:8px}
+  p{margin:0 0 14px}
+  .lead{font-size:19px; color:#C9D6E8; max-width:720px}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+
+  /* hero */
+  .hero{padding:96px 0 64px}
+  .badge{
+    display:inline-flex; gap:8px; align-items:center; font-size:13px; color:var(--amber);
+    border:1px solid rgba(245,165,36,.4); background:rgba(245,165,36,.08);
+    padding:6px 12px; border-radius:999px; margin-bottom:22px;
+  }
+  .pulse{width:8px; height:8px; border-radius:50%; background:var(--coral); box-shadow:0 0 0 0 rgba(255,92,108,.7); animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,92,108,.6)}70%{box-shadow:0 0 0 12px rgba(255,92,108,0)}100%{box-shadow:0 0 0 0 rgba(255,92,108,0)}}
+
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-top:40px}
+  .stat{
+    background:linear-gradient(160deg,var(--panel-2),var(--panel)); border:1px solid var(--line);
+    border-radius:16px; padding:20px 20px 18px; position:relative; overflow:hidden;
+  }
+  .stat::after{content:""; position:absolute; left:0; right:0; top:0; height:3px; background:var(--c,var(--teal))}
+  .stat .k{font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted)}
+  .stat .v{font-size:38px; font-weight:800; margin:6px 0 2px; color:var(--c,var(--teal)); font-variant-numeric:tabular-nums}
+  .stat .d{font-size:13px; color:#B9C7DC}
+
+  /* cards */
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  @media (max-width:760px){.grid2{grid-template-columns:1fr}}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:24px}
+  .card.hot{border-color:rgba(255,92,108,.45); box-shadow:0 0 0 1px rgba(255,92,108,.12), 0 18px 40px -20px rgba(255,92,108,.35)}
+  .tag{display:inline-block; font-size:12px; font-weight:700; padding:3px 9px; border-radius:6px; background:rgba(43,212,180,.12); color:var(--teal); margin-bottom:10px}
+  .tag.amber{background:rgba(245,165,36,.12); color:var(--amber)}
+  .tag.coral{background:rgba(255,92,108,.12); color:var(--coral)}
+  .tag.slate{background:rgba(110,134,168,.18); color:#B9C7DC}
+
+  /* before/after bars */
+  .bars{display:grid; gap:16px; margin-top:20px}
+  .bar-row{display:grid; grid-template-columns:150px 1fr 80px; gap:12px; align-items:center; font-size:14px}
+  .track{height:26px; background:var(--panel-2); border-radius:8px; overflow:hidden; border:1px solid var(--line)}
+  .fill{height:100%; border-radius:7px; transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+  .fill.taken{background:linear-gradient(90deg,#1DB59A,var(--teal))}
+  .fill.turned{background:linear-gradient(90deg,#6E86A8,#8CA0BC)}
+  .fill.missed{background:linear-gradient(90deg,#FF5C6C,#FF8A96)}
+  .pct{font-weight:700; text-align:right; font-variant-numeric:tabular-nums}
+  @media (max-width:560px){.bar-row{grid-template-columns:110px 1fr 60px}}
+
+  table{width:100%; border-collapse:collapse; font-size:14px; margin-top:12px}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums}
+  th{font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); font-weight:700}
+  td.hot{color:var(--coral); font-weight:700}
+  td.ok{color:var(--teal); font-weight:700}
+
+  /* prompt + evidence */
+  .mod{margin-top:22px}
+  .mod-head{display:flex; gap:14px; align-items:center; margin-bottom:12px}
+  .num{
+    font-size:14px; font-weight:800; width:40px; height:40px; border-radius:12px; display:grid; place-items:center;
+    background:linear-gradient(140deg,var(--amber),#E08A0D); color:#1a1200; flex:0 0 auto;
+  }
+  pre{
+    background:#0A1322; border:1px solid var(--line); border-left:3px solid var(--amber);
+    border-radius:12px; padding:16px 18px; white-space:pre-wrap; word-wrap:break-word;
+    font:13.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; color:#D7E2F2; margin:10px 0 0;
+  }
+  .ev{background:rgba(43,212,180,.06); border:1px solid rgba(43,212,180,.25); border-radius:12px; padding:14px 16px; font-size:15px}
+  .ev strong{color:var(--teal)}
+  .src{font-size:12px; color:var(--muted); margin-top:8px}
+
+  /* timeline */
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:24px}
+  @media (max-width:760px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px}
+  .step .n{font-size:40px; font-weight:800; color:var(--c); line-height:1}
+  .step{--c:var(--teal)}
+  .step.a{--c:var(--amber)}
+  .step.c{--c:var(--coral)}
+
+  /* phone frame around the prototype */
+  .proto-wrap{position:relative; margin-top:26px; border-radius:22px; padding:14px; background:linear-gradient(160deg,#1A2740,#0E1729); border:1px solid var(--line); box-shadow:0 40px 80px -30px rgba(43,212,180,.25)}
+  .proto-wrap iframe{width:100%; height:880px; border:0; border-radius:14px; background:var(--night); display:block}
+  .proto-bar{display:flex; justify-content:space-between; gap:12px; align-items:center; font-size:13px; color:var(--muted); padding:4px 6px 12px; flex-wrap:wrap}
+  .proto-bar a{font-weight:700}
+  .feat{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin-top:24px}
+  .feat .card{padding:20px}
+  .feat .ic{width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-size:18px; background:var(--panel-2); border:1px solid var(--line); margin-bottom:12px}
+  .feat p{font-size:14.5px; color:#C3D0E2; margin:0}
+
+  /* skill */
+  .checks{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-top:20px}
+  .check{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px}
+  .check .i{font-size:12px; color:var(--teal); font-weight:800; letter-spacing:.1em}
+  .check b{display:block; margin:4px 0 4px; font-size:15px}
+  .check span{font-size:13.5px; color:#B9C7DC}
+  .verdict{display:inline-flex; gap:10px; align-items:center; padding:10px 16px; border-radius:12px; background:rgba(255,92,108,.1); border:1px solid rgba(255,92,108,.4); color:#FFB3BB; font-weight:700; margin-top:18px}
+
+  .known{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media (max-width:760px){.known{grid-template-columns:1fr}}
+  ul{padding-left:20px; margin:8px 0 0}
+  li{margin-bottom:6px}
+  footer{padding:40px 0 64px; color:var(--muted); font-size:13px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="in">
+    <a href="#top">Top</a>
+    <a href="#what">What changed</a>
+    <a href="#data">The data</a>
+    <a href="#known">What we know</a>
+    <a href="#modules">Six modules</a>
+    <a href="#fix">The fix</a>
+    <a href="#features">Prototype features</a>
+    <a href="#skill">The skill</a>
+    <a href="#open">Open decisions</a>
+  </div>
+</nav>
+
+<header class="hero wrap" id="top">
+  <div class="badge"><span class="pulse"></span> Rook Dispatch · Release 4.2 review</div>
+  <p class="eyebrow">Final report · Claude Code for PMs, Module 1 to 6</p>
+  <h1>Release 4.2 made good responders<br>go quiet, and the fix is in a prototype.</h1>
+  <p class="lead" style="margin-top:22px">
+    On 12 August we shortened the ping wait from 90 to 60 seconds and changed how responders are ranked.
+    Since then, responders miss far more pings, and some good responders stopped getting callouts in their own areas.
+    The one change that most likely caused the rise in misses is the shorter wait. We have not tested that yet.
+  </p>
+  <p class="small muted" style="margin-top:14px">Prepared by Brendan Burke, PM, Rook Dispatch · Data to 7 Sep 2026 · Built 16 Oct 2026</p>
+
+  <div class="stats">
+    <div class="stat" style="--c:var(--coral)">
+      <div class="k">Missed pings</div>
+      <div class="v">2.3% → 18.0%</div>
+      <div class="d">Before vs after 12 Aug. Verified against the pings table.</div>
+    </div>
+    <div class="stat" style="--c:var(--amber)">
+      <div class="k">Taken pings</div>
+      <div class="v">76.6% → 64.0%</div>
+      <div class="d">831 of 1,085 before. 391 of 611 after.</div>
+    </div>
+    <div class="stat" style="--c:var(--slate)">
+      <div class="k">Turned down</div>
+      <div class="v">21.1% → 18.0%</div>
+      <div class="d">Refusals did not rise. The change is in misses.</div>
+    </div>
+    <div class="stat" style="--c:var(--coral)">
+      <div class="k">Four quiet responders</div>
+      <div class="v">306 → 56</div>
+      <div class="d">Pings sent to Vesper, The Undertow, Meteor Mite and Farlight, before vs after.</div>
+    </div>
+  </div>
+</header>
+
+<section id="what" class="wrap">
+  <p class="eyebrow">01 · What changed</p>
+  <h2>Three changes shipped together on 12 August</h2>
+  <p class="lead">Each one is visible in the config and the code. They shipped together, so the data cannot tell us which one did the damage.</p>
+
+  <div class="grid2" style="margin-top:26px">
+    <div class="card">
+      <span class="tag">Timeout</span>
+      <h3>Ping wait: 90s → 60s</h3>
+      <p class="muted small">A ping not answered in time counts as missed and goes to the next responder.</p>
+      <p class="small"><code>config.py</code> line 9: <code>OFFER_TIMEOUT_SECONDS = 60</code></p>
+    </div>
+    <div class="card">
+      <span class="tag amber">Ranking</span>
+      <h3>Proximity up, recent acceptance down</h3>
+      <p class="muted small">Proximity weight .45 → .60. Recent acceptance weight .40 → .25. Capability stays at .15.</p>
+      <p class="small"><code>config.py</code> lines 13 to 15</p>
+    </div>
+    <div class="card">
+      <span class="tag slate">Console</span>
+      <h3>Filters persist</h3>
+      <p class="muted small">Handler console filters now stay set between sessions. This is separate from the responder problem.</p>
+      <p class="small">From the 4.2 release notes on the wiki.</p>
+    </div>
+    <div class="card hot">
+      <span class="tag coral">The mechanism</span>
+      <h3>A miss costs the same as a turn-down</h3>
+      <p class="muted small">Taking a callout adds +0.08 to a responder's score. A turn-down or a miss takes away 0.12. There is no recovery path, and scores never ease back.</p>
+      <p class="small"><code>offer.py:28</code> and <code>offer.py:30</code>; values in <code>config.py:18–19</code></p>
+    </div>
+  </div>
+</section>
+
+<section id="data" class="wrap">
+  <p class="eyebrow">02 · The evidence</p>
+  <h2>Misses rose. Refusals did not.</h2>
+  <p class="lead">Every row in the pings table is one time a responder's phone was asked to take a callout. Before and after 12 August, using the cut-off <code>sent_at ≥ 2026-08-12</code>.</p>
+
+  <div class="card" style="margin-top:26px">
+    <h3>Share of pings, before vs after release 4.2</h3>
+    <div class="bars">
+      <div class="bar-row"><span>Taken · before</span><div class="track"><div class="fill taken" style="width:76.6%"></div></div><span class="pct">76.6%</span></div>
+      <div class="bar-row"><span>Taken · after</span><div class="track"><div class="fill taken" style="width:64.0%"></div></div><span class="pct">64.0%</span></div>
+      <div class="bar-row"><span>Missed · before</span><div class="track"><div class="fill missed" style="width:2.3%"></div></div><span class="pct">2.3%</span></div>
+      <div class="bar-row"><span>Missed · after</span><div class="track"><div class="fill missed" style="width:18%"></div></div><span class="pct">18.0%</span></div>
+      <div class="bar-row"><span>Turned down · before</span><div class="track"><div class="fill turned" style="width:21.1%"></div></div><span class="pct">21.1%</span></div>
+      <div class="bar-row"><span>Turned down · after</span><div class="track"><div class="fill turned" style="width:18%"></div></div><span class="pct">18.0%</span></div>
+    </div>
+    <p class="src">Source: <code>rook-database</code>, pings table. Counts re-run for this report: before 1,085 pings (831 taken, 229 turned down, 25 missed); after 611 pings (391 taken, 110 turned down, 110 missed).</p>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>Four responders, one story</h3>
+    <p class="muted small">Vesper, The Undertow, Meteor Mite and Farlight had 70 to 86 pings each before 12 August. After, they had 11 to 17 each. Misses went up. Turn-downs did not.</p>
+    <table>
+      <thead><tr><th>Responder</th><th>Pings before</th><th>Taken before</th><th>Pings after</th><th>Taken after</th><th>Missed after</th></tr></thead>
+      <tbody>
+        <tr><td>Vesper</td><td>86</td><td>70</td><td class="hot">17</td><td class="hot">5</td><td class="hot">9</td></tr>
+        <tr><td>The Undertow</td><td>75</td><td>58</td><td class="hot">14</td><td class="hot">3</td><td class="hot">9</td></tr>
+        <tr><td>Meteor Mite</td><td>70</td><td>48</td><td class="hot">14</td><td class="hot">3</td><td class="hot">8</td></tr>
+        <tr><td>Farlight</td><td>75</td><td>55</td><td class="hot">11</td><td class="hot">2</td><td class="hot">7</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>306</strong></td><td><strong>231</strong></td><td class="hot"><strong>56</strong></td><td class="hot"><strong>13</strong></td><td class="hot"><strong>33</strong></td></tr>
+      </tbody>
+    </table>
+    <p class="src">Source: <code>rook-database</code>, pings table, re-run for this report. Filter: responder in the four names, split on 12 Aug 2026.</p>
+  </div>
+</section>
+
+<section id="known" class="wrap">
+  <p class="eyebrow">03 · What we know, and what we don't</p>
+  <h2>Stated plainly</h2>
+  <div class="known">
+    <div class="card">
+      <span class="tag">Verified</span>
+      <h3>Misses went up, refusals did not</h3>
+      <p class="small muted">Re-run from the database for this report. Counts match the figures in the working notes.</p>
+    </div>
+    <div class="card">
+      <span class="tag slate">Earlier analysis</span>
+      <h3>Time between a miss and the next ping fell</h3>
+      <p class="small muted">Median gap: 92 seconds before, 62 seconds after. This matches the wait change. From earlier analysis; not re-run here.</p>
+    </div>
+    <div class="card">
+      <span class="tag">Verified</span>
+      <h3>The score rules are in the code</h3>
+      <p class="small muted">Taking a callout adds 0.08. A turn-down or miss takes away 0.12. Nothing else adds points. Read in <code>history.py</code> and <code>offer.py</code>.</p>
+    </div>
+    <div class="card">
+      <span class="tag amber">Likely, not tested</span>
+      <h3>The 60s wait is the most direct cause of more misses</h3>
+      <p class="small muted">Slow-but-willing responders may be timing out. We have no response-time logs to prove it.</p>
+    </div>
+    <div class="card hot" style="grid-column:1/-1">
+      <span class="tag coral">Not explained</span>
+      <h3>Why the four stopped getting callouts in their own areas</h3>
+      <p class="small muted">Their own-area offers fell from about 82% to about 21.5% (earlier analysis). Their scores were still high on 11 Aug, so falling scores alone do not explain it. Possible causes: they were dropped from the available list, travel-time estimates changed, or the live scores differ from our replay. None of these can be checked from the database or the code.</p>
+    </div>
+  </div>
+</section>
+
+<section id="modules" class="wrap">
+  <p class="eyebrow">04 · How we got here</p>
+  <h2>Six modules, one finding and one prompt each</h2>
+  <p class="lead">Each module below quotes the prompt that produced a real artifact. Prompts are copied exactly from the <code>prompts.md</code> file for that module, including typos.</p>
+
+  <!-- Module 1 -->
+  <div class="mod card">
+    <div class="mod-head"><div class="num">01</div><div><span class="tag">Origin story</span><h3>Finding: the key question was refusal or cut off</h3></div></div>
+    <p class="small muted">Working context, Session 1 conclusions in <code>CLAUDE.md</code>.</p>
+    <div class="ev"><strong>The question that mattered:</strong> are the quiet responders refusing work, or are they cut off before they can answer? The data says cut off. Misses went up and turn-downs stayed flat.</div>
+    <pre>Yes, then. Tell me what the most important question I should be asking based on all this data is, and then answer it</pre>
+  </div>
+
+  <!-- Module 2 -->
+  <div class="mod card">
+    <div class="mod-head"><div class="num">02</div><div><span class="tag amber">Super hearing</span><h3>Finding: tickets and interviews describe different problems</h3></div></div>
+    <p class="small muted">Session 2 conclusions in <code>CLAUDE.md</code>.</p>
+    <div class="ev"><strong>Two piles that disagree:</strong> 30 tickets say the phone went quiet, 15 say the callout was gone before they could answer. The interviews stressed the second. Only one of the four interviewed handlers filed a ticket. Dark mode is only four tickets.</div>
+    <pre>Can you include interview data in this?</pre>
+  </div>
+
+  <!-- Module 3 -->
+  <div class="mod card">
+    <div class="mod-head"><div class="num">03</div><div><span class="tag">Rewind</span><h3>Artifact: the before and after counts</h3></div></div>
+    <p class="small muted">Re-run for this report from <code>rook-database</code>, pings table.</p>
+    <div class="ev"><strong>Taken fell 76.6% → 64.0%; missed rose 2.3% → 18.0%; turned down stayed near 20%.</strong> The support tickets moved on the same date: 5 to 8 a week before, 20 to 32 after.</div>
+    <pre>Use the rook-database connector. Call describe_table on pings, then run_query. Every row is one time we pinged a responder, and whether they took it, turned it down, or missed it. Release 4.2 shipped on 12 August. Tell me what changed after that date. Show me the weekly numbers before and after, and show me the rows you used to get them.</pre>
+  </div>
+
+  <!-- Module 4 -->
+  <div class="mod card">
+    <div class="mod-head"><div class="num">04</div><div><span class="tag coral">X-ray vision</span><h3>Artifact: the code that takes points off and puts them back</h3></div></div>
+    <p class="small muted">Read from <code>00-rook/code/dispatch-routing</code>.</p>
+    <div class="ev"><strong>Taking a callout adds 0.08 (<code>offer.py:28</code>). A turn-down or a miss takes 0.12 (<code>offer.py:30</code>). Those are the only two places that change a score.</strong> There is no decay, reset or recovery.</div>
+    <pre>Find me the part of this code that takes points off somebody when they miss a ping or turn one down. Show it to me and explain it in plain English. Then find me every single thing in this code that puts points back on.</pre>
+  </div>
+
+  <!-- Module 5 -->
+  <div class="mod card">
+    <div class="mod-head"><div class="num">05</div><div><span class="tag amber">Super speed</span><h3>Artifact: the responder prototype</h3></div></div>
+    <p class="small muted">File: <code>05-super-speed/rook-dispatch-responder-prototype.html</code>. Opens in the browser, no install.</p>
+    <div class="ev"><strong>A single file you can click through.</strong> It shows the handler console and a responder's phone, with a quiet prompt, a map, and the steps On the way and Arrived. See the fix section below.</div>
+    <pre>Take the brief you just wrote brief.md and build me a working prototype, an actual screen I can click through, not a description of one. Build it as a single file I can just open in my browser. Show me where this would actually happen, and make at least one thing on it respond when I click it. Consider the user experience. what happens when a ping is received? When someone is in "quiet mode"? What else do users (responders) want to see and what will make their experience interactive and seamless. Model the UX on a successful, real world app that has similar purpose/functionality. Brand the prototype with a "Rook" logo that you make up. Pick a color scheme and stick to it. I want this to be as professional as possible, while looking cool and wowing my stakeholder. Ask me clarifying questions.</pre>
+  </div>
+
+  <!-- Module 6 -->
+  <div class="mod card">
+    <div class="mod-head"><div class="num">06</div><div><span class="tag">Sidekicks</span><h3>Artifact: the review-checklist skill, and what it found</h3></div></div>
+    <p class="small muted">File: <code>.claude/skills/review-checklist/SKILL.md</code>. Result from the Session 6 record in <code>CLAUDE.md</code>.</p>
+    <div class="ev"><strong>The first review of the brief returned "not ready."</strong> No named owner (the only line is "For: Helen Achebe"). The tap-restores-offers step conflicts with Goal 3. Numbers are sourced only as "earlier analysis."</div>
+    <pre>Turn that into a skill called review-checklist, so I can point it at any brief and get the same check every time, without me explaining it again.</pre>
+    <p class="small muted" style="margin-top:10px">The prompt above is from Module 6, step 4 (the request for the skill). The same module's step 5 ("Yes, run review-checklist on 05-super-speed/brief.md") produced the verdict.</p>
+  </div>
+</section>
+
+<section id="fix" class="wrap">
+  <p class="eyebrow">05 · The fix</p>
+  <h2>Show it, don't describe it</h2>
+  <p class="lead">Helen asked for something she could click through before anything in the code changes. The prototype below is that. It links the handler console and Vesper's phone, and runs on demo timing (10 seconds per ping) so the whole flow fits in a meeting.</p>
+
+  <div class="steps">
+    <div class="step"><div class="n">1</div><h3>See the miss</h3><p class="small muted">The phone shows the miss, and the handler sees the responder flagged Quiet.</p></div>
+    <div class="step a"><div class="n">2</div><h3>Confirm you're here</h3><p class="small muted">One tap restores own-area callouts for a set time, and the phone confirms "Back in the order."</p></div>
+    <div class="step c"><div class="n">3</div><h3>Get the callout, see the way</h3><p class="small muted">The accepted callout shows an area map and steps: On the way, Arrived, Closed.</p></div>
+  </div>
+
+  <div class="proto-wrap">
+    <div class="proto-bar">
+      <span>Live prototype · <strong>Demo · 10 s</strong> mode · Illustrative sample data</span>
+      <a href="05-super-speed/rook-dispatch-responder-prototype.html" target="_blank" rel="noopener">Open full screen ↗</a>
+    </div>
+    <iframe src="05-super-speed/rook-dispatch-responder-prototype.html" title="Rook Dispatch responder prototype" loading="lazy"></iframe>
+  </div>
+  <p class="src" style="margin-top:10px">Every number in the prototype is a sample value and is labeled illustrative. Restore length (4 hours) is a placeholder, not a decision.</p>
+</section>
+
+<section id="features" class="wrap">
+  <p class="eyebrow">06 · Prototype features</p>
+  <h2>What I built into the prototype</h2>
+  <p class="lead">Each feature below is in the file now. Where a feature depends on a decision that is not made, the card says so.</p>
+
+  <div class="feat">
+    <div class="card">
+      <div class="ic">🔔</div>
+      <h3>Missed-ping banner</h3>
+      <p>When a ping times out, the phone says the callout moved on, with a Dismiss button. Nothing is hidden from the responder.</p>
+    </div>
+    <div class="card">
+      <div class="ic">🌙</div>
+      <h3>Quiet mode</h3>
+      <p>After 3 misses in a row (placeholder threshold), the phone asks the responder to confirm they are available. The handler console flags them Quiet.</p>
+    </div>
+    <div class="card">
+      <div class="ic">✅</div>
+      <h3>Confirm sheet</h3>
+      <p>"Yes, I'm available" or "Not now." One tap is all it takes. Confirming clears the miss-in-a-row count.</p>
+    </div>
+    <div class="card">
+      <div class="ic">↩️</div>
+      <h3>Back in the order</h3>
+      <p>The first callout taken after confirming shows a "Back in the order" message, so the recovery is visible to the responder.</p>
+    </div>
+    <div class="card">
+      <div class="ic">🗺️</div>
+      <h3>Accepted-callout map</h3>
+      <p>The responder sees the area and an estimated time. The exact address is only shown when they tap "On the way."</p>
+    </div>
+    <div class="card">
+      <div class="ic">🚶</div>
+      <h3>On the way → Arrived → Closed</h3>
+      <p>Three steps that move the callout forward. The phone has an Arrived button, so the handler knows when the responder is on scene.</p>
+    </div>
+    <div class="card">
+      <div class="ic">📍</div>
+      <h3>Open in Maps and arrival notes</h3>
+      <p>Shortcuts for navigation and notes for the callout. Whether callouts hold addresses or arrival notes is not checked in the database yet.</p>
+    </div>
+    <div class="card">
+      <div class="ic">🚫</div>
+      <h3>Can't make it</h3>
+      <p>Treated as a turn-down that moves the callout on. Under today's scoring it costs the same as a miss. That needs Helen's review before it is shown to responders.</p>
+    </div>
+    <div class="card">
+      <div class="ic">🔔</div>
+      <h3>Test ring</h3>
+      <p>The responder can ring their own phone and answer "Yes, I heard it" or "No, I didn't." A "No" is logged for support as "did not hear it." This is local only, not push delivery.</p>
+    </div>
+    <div class="card">
+      <div class="ic">🖥️</div>
+      <h3>Handler console</h3>
+      <p>Live queue, responder table with Quiet and Restored pills, and a detail drawer. Demo and Real speed toggles (10 s vs 60 s), sound, annotate, reset, and Send callout.</p>
+    </div>
+  </div>
+</section>
+
+<section id="skill" class="wrap">
+  <p class="eyebrow">07 · The skill</p>
+  <h2>review-checklist checks a brief before it goes further</h2>
+  <p class="lead">It runs the same seven checks on any brief, so the review does not depend on how I explain it that day. It reads the brief text only. It does not query data or the wiki.</p>
+
+  <div class="checks">
+    <div class="check"><div class="i">01</div><b>Owner</b><span>A named person who decides and answers for the work.</span></div>
+    <div class="check"><div class="i">02</div><b>Success measures</b><span>A baseline, a target and a timeframe.</span></div>
+    <div class="check"><div class="i">03</div><b>Scope matches</b><span>The summary and goals stay inside the out-of-scope list.</span></div>
+    <div class="check"><div class="i">04</div><b>Problem before solution</b><span>No fix is proposed before the problem is described.</span></div>
+    <div class="check"><div class="i">05</div><b>Goals</b><span>Outcomes, not restated solutions.</span></div>
+    <div class="check"><div class="i">06</div><b>Out of scope</b><span>A section must exist and say what the work will not do.</span></div>
+    <div class="check"><div class="i">07</div><b>Data-backed problem</b><span>Every number names its source and date range.</span></div>
+  </div>
+
+  <div class="grid2" style="margin-top:18px">
+    <div class="card">
+      <h3>What it found on this brief</h3>
+      <p class="small muted">Verdict: not ready. Fix first: name an owner; resolve the conflict between the tap step and Goal 3; put a source and date range on every number.</p>
+      <div class="verdict">Not ready · Session 6 result</div>
+    </div>
+    <div class="card">
+      <h3>What it cannot do</h3>
+      <p class="small muted">It does not run the data, watch the metrics, or stop a release. It catches a weak brief before it reaches engineering. It would not have caught a config change that was never written up as a brief.</p>
+      <p class="small muted">A Monday run is scheduled in Auto mode. It runs only while the app is open.</p>
+    </div>
+  </div>
+</section>
+
+<section id="open" class="wrap" style="padding-bottom:40px">
+  <p class="eyebrow">08 · Open decisions</p>
+  <h2>What Helen needs to decide</h2>
+  <div class="grid2">
+    <div class="card">
+      <span class="tag amber">Decision</span>
+      <h3>Owner for the brief</h3>
+      <p class="small muted">Nobody is named. The review cannot pass until someone is.</p>
+    </div>
+    <div class="card">
+      <span class="tag amber">Decision</span>
+      <h3>Restore length</h3>
+      <p class="small muted">The prototype uses 4 hours as a placeholder. The brief says the length is not decided.</p>
+    </div>
+    <div class="card">
+      <span class="tag amber">Decision</span>
+      <h3>Penalty for "Can't make it"</h3>
+      <p class="small muted">Today it costs the same as a miss. Needs review before responders see it.</p>
+    </div>
+    <div class="card">
+      <span class="tag amber">Decision</span>
+      <h3>Own-area tap and ranking</h3>
+      <p class="small muted">The tap restores own-area callouts. That changes ranking in effect, which conflicts with Goal 3. Helen needs to approve it as a time-limited exception, or drop it.</p>
+    </div>
+  </div>
+  <p class="src" style="margin-top:20px">Baseline numbers (own-area offers, weekly ticket counts) come from earlier analysis and have not been confirmed by Ravi Menon, who owns the weekly numbers.</p>
+</section>
+
+<footer class="wrap">
+  Rook Industries is a fictional teaching scenario for the Product School course "Claude Code for PMs" (cohort ccpm-2026.1). Nothing here is a fact about the world.
+</footer>
+
+</body>
+</html>
