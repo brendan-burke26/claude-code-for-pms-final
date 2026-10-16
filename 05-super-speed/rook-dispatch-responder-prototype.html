@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rook Dispatch · Missed-ping prototype</title>
+<style>
+:root{
+  --night:#0B1220; --panel:#121C2E; --panel-2:#1A2740; --line:#24344F;
+  --ink:#EAF0F8; --muted:#8CA0BC;
+  --amber:#F5A524; --teal:#2BD4B4; --coral:#FF5C6C; --slate:#6E86A8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  background:radial-gradient(1200px 700px at 80% -10%, #1B2B47 0%, var(--night) 60%) fixed;
+  color:var(--ink);
+  font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Inter,system-ui,sans-serif;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+h2,h3,p{margin:0}
+.small{font-size:12px}
+.muted{color:var(--muted)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.spacer{flex:1}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+/* ---------- top bar ---------- */
+.topbar{display:flex;align-items:center;gap:18px;padding:14px 24px;border-bottom:1px solid var(--line);
+  background:rgba(11,18,32,.82);backdrop-filter:blur(8px);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .word{font-weight:800;letter-spacing:.32em;font-size:15px}
+.brand .sub{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;border-left:1px solid var(--line);padding-left:10px}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{padding:6px 12px;border-radius:7px;color:var(--muted);font-size:13px}
+.seg button.on{background:var(--panel-2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.toggle{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;cursor:pointer;user-select:none}
+.toggle input{accent-color:var(--amber)}
+.btn{padding:9px 14px;border-radius:10px;font-weight:600;font-size:13px;transition:transform .12s,filter .12s}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:linear-gradient(180deg,#FFB840,var(--amber));color:#1A1202;box-shadow:0 6px 20px rgba(245,165,36,.25)}
+.btn.ghost{border:1px solid var(--line);background:var(--panel)}
+.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+
+/* ---------- pills & flags ---------- */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid transparent;white-space:nowrap}
+.pill.amber{color:var(--amber);background:rgba(245,165,36,.12);border-color:rgba(245,165,36,.35)}
+.pill.teal{color:var(--teal);background:rgba(43,212,180,.10);border-color:rgba(43,212,180,.35)}
+.pill.coral{color:var(--coral);background:rgba(255,92,108,.10);border-color:rgba(255,92,108,.40)}
+.pill.slate{color:#A9BCD6;background:rgba(110,134,168,.14);border-color:rgba(110,134,168,.35)}
+.pill.muted{color:var(--muted);border-color:var(--line)}
+.flag{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.flag.hot{color:var(--coral);border-color:rgba(255,92,108,.45);background:rgba(255,92,108,.08)}
+.flag.ok{color:var(--teal);border-color:rgba(43,212,180,.4);background:rgba(43,212,180,.08)}
+.live{width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block;animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+.pulse{width:9px;height:9px;border-radius:50%;background:var(--teal);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(43,212,180,.55)}70%{box-shadow:0 0 0 10px rgba(43,212,180,0)}100%{box-shadow:0 0 0 0 rgba(43,212,180,0)}}
+
+/* ---------- layout ---------- */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;padding:24px;align-items:start;max-width:1500px;margin:0 auto}
+@media (max-width:1100px){.stage{grid-template-columns:1fr}}
+
+/* ---------- console (desktop) ---------- */
+.console{background:var(--panel);border:1px solid var(--line);border-radius:16px;position:relative}
+.console-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);border-radius:16px 16px 0 0}
+.h-title{font-weight:700;font-size:16px}
+.h-sub{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
+.callout{padding:18px 20px;border-bottom:1px solid var(--line)}
+.callout-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.queue{margin-top:14px;display:grid;gap:8px}
+.q-row{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
+  background:var(--panel-2);border:1px solid transparent;transition:border-color .3s,box-shadow .3s,opacity .3s}
+.q-row.queued,.q-row.not-pinged{opacity:.55}
+.q-row.ringing{border-color:var(--amber);box-shadow:0 0 0 4px rgba(245,165,36,.12)}
+.q-row.taken{border-color:var(--teal)}
+.q-row.missed{border-color:rgba(255,92,108,.6)}
+.rank{width:28px;height:28px;border-radius:50%;background:var(--night);display:grid;place-items:center;font-weight:700;font-size:12px;color:var(--muted)}
+.tag{font-size:11px;color:var(--amber);border:1px solid rgba(245,165,36,.4);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+.table-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:12px;border-bottom:1px solid var(--line);font-weight:600;white-space:nowrap}
+.tbl td{padding:12px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+.tbl tr.row{cursor:pointer;transition:background .15s}
+.tbl tr.row:hover td{background:rgba(255,255,255,.025)}
+.tbl tr.row.sel td{background:var(--panel-2)}
+.foot{padding:12px 20px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+
+/* ---------- drawer ---------- */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .25s;z-index:35}
+.scrim.show{opacity:1;pointer-events:auto}
+.drawer{position:fixed;right:0;top:0;bottom:0;width:390px;max-width:100%;background:var(--panel);border-left:1px solid var(--line);
+  transform:translateX(105%);transition:transform .32s cubic-bezier(.2,.8,.2,1);z-index:40;padding:22px;overflow:auto;box-shadow:-20px 0 60px rgba(0,0,0,.45)}
+.drawer.open{transform:none}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.stat{background:var(--panel-2);border-radius:12px;padding:12px}
+.stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:12px}
+.note-box{border:1px dashed var(--line);border-radius:12px;padding:12px;color:var(--muted);font-size:12px;margin-top:14px}
+
+/* ---------- phone ---------- */
+.device-col{display:flex;flex-direction:column;align-items:center;gap:12px}
+.device{position:relative;width:390px;height:812px;border-radius:58px;background:#05080F;padding:12px;
+  box-shadow:0 0 0 2px #1E2B43,0 40px 80px rgba(0,0,0,.6),inset 0 0 0 2px #0F1828}
+.screen{position:relative;width:100%;height:100%;border-radius:46px;overflow:hidden;background:#0C1628}
+.notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:120px;height:34px;background:#000;border-radius:20px;z-index:31}
+.statusbar{position:absolute;top:0;left:0;right:0;height:50px;display:flex;justify-content:space-between;align-items:center;padding:0 30px;font-size:14px;font-weight:600;z-index:30;pointer-events:none}
+.home{position:absolute;inset:0;padding:64px 18px 100px;overflow:auto;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.greet{display:flex;align-items:center;gap:12px;margin:6px 2px 16px}
+.avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(160deg,#FFC55C,var(--amber));color:#1A1202;display:grid;place-items:center;font-weight:800;font-size:20px}
+.greet h2{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.card{border-radius:20px;padding:18px;background:var(--panel);border:1px solid var(--line);margin-bottom:14px}
+.card h3{font-size:18px;margin:12px 0 6px;letter-spacing:-.01em}
+.card p{color:#C5D2E4;font-size:14px}
+.quiet-card{background:linear-gradient(160deg,rgba(255,92,108,.18),rgba(245,165,36,.07));border-color:rgba(255,92,108,.42)}
+.ok-card{background:linear-gradient(160deg,rgba(43,212,180,.15),rgba(43,212,180,.03));border-color:rgba(43,212,180,.38)}
+.active-card{background:linear-gradient(160deg,rgba(245,165,36,.16),rgba(245,165,36,.03));border-color:rgba(245,165,36,.4)}
+.big-btn{width:100%;padding:15px;border-radius:14px;font-weight:700;font-size:16px;margin-top:14px;transition:transform .12s}
+.big-btn:active{transform:scale(.98)}
+.btn-teal{background:var(--teal);color:#032A22}
+.quiet-card details{margin-top:12px;font-size:13px;color:var(--muted)}
+.quiet-card summary{cursor:pointer;color:#C5D2E4}
+.quiet-card details p{margin-top:8px;font-size:13px;color:var(--muted)}
+.sec-title{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:20px 4px 10px}
+.hist{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:8px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:8px}
+.ph-title{font-size:24px;font-weight:700;margin:6px 2px 2px}
+.tabbar{position:absolute;bottom:0;left:0;right:0;height:86px;background:rgba(12,22,40,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding-top:10px;z-index:15}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);font-size:12px;padding:6px 18px;border-radius:12px}
+.tab.on{color:var(--amber)}
+.tab i{width:22px;height:22px;border-radius:7px;border:2px solid currentColor;display:block;opacity:.9}
+.tab.on i{background:rgba(245,165,36,.2)}
+
+/* incoming ping */
+.incoming{position:absolute;inset:0;z-index:25;display:none;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:72px 26px 40px;text-align:center;background:radial-gradient(120% 80% at 50% 0%,#4A3410 0%,#1A1406 45%,#0C1628 100%)}
+.incoming.show{display:flex;animation:slideUp .4s cubic-bezier(.2,.8,.2,1)}
+@keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
+.inc-title{font-size:26px;font-weight:800;margin-top:14px;letter-spacing:-.01em}
+.inc-sub{color:#E7C98C;margin-top:4px}
+.ring-wrap{position:relative;width:210px;height:210px;display:grid;place-items:center}
+.ring-wrap svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ring-wrap .t{font-size:52px;font-weight:800;font-variant-numeric:tabular-nums}
+.ring-wrap .lbl{position:absolute;bottom:34px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.ripple{position:absolute;inset:4px;border-radius:50%;border:2px solid rgba(245,165,36,.55);animation:ripple 1.8s infinite;pointer-events:none}
+.ripple.d2{animation-delay:.6s}
+@keyframes ripple{from{transform:scale(.75);opacity:.9}to{transform:scale(1.45);opacity:0}}
+.accept{width:100%;padding:20px;border-radius:20px;background:var(--teal);color:#032A22;font-size:18px;font-weight:800;box-shadow:0 10px 30px rgba(43,212,180,.3);transition:transform .12s}
+.accept:active{transform:scale(.98)}
+.decline{margin-top:10px;width:100%;padding:14px;color:var(--muted);font-size:15px}
+.inc-foot{font-size:12px;color:var(--muted);margin-top:12px}
+
+/* confirm sheet */
+.sheet-bg{position:absolute;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s;z-index:28}
+.sheet-bg.show{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#15223A;border-radius:28px 28px 0 0;padding:14px 22px 34px;
+  transform:translateY(105%);transition:transform .35s cubic-bezier(.2,.8,.2,1);z-index:29;border-top:1px solid var(--line);text-align:center}
+.sheet.show{transform:none}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 16px}
+.sheet h3{font-size:20px;margin-bottom:8px}
+.sheet p{color:#C5D2E4;font-size:14px}
+.check{width:76px;height:76px;border-radius:50%;background:var(--teal);margin:6px auto 14px;display:grid;place-items:center;color:#032A22;font-size:38px;font-weight:800;transform:scale(0);transition:transform .45s cubic-bezier(.3,1.6,.5,1)}
+.check.show{transform:scale(1)}
+.placeholder{margin:14px 0 4px;border:1px dashed rgba(245,165,36,.5);border-radius:12px;padding:10px;color:var(--amber);font-size:12px}
+
+/* toasts */
+.toasts{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:60;align-items:center;pointer-events:none}
+.toast{background:#1A2740;border:1px solid var(--line);padding:10px 16px;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.45);animation:toastIn .3s ease;font-size:13px;white-space:nowrap}
+@keyframes toastIn{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+
+/* accepted callout: map, steps, arrival notes */
+.active{position:absolute;inset:0;z-index:22;background:#0C1628;transform:translateY(102%);transition:transform .4s cubic-bezier(.2,.8,.2,1);overflow:auto;padding:58px 18px 26px}
+.active.show{transform:none}
+.act-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.act-title{font-size:20px;font-weight:700}
+.iconbtn{width:36px;height:36px;border-radius:50%;background:var(--panel-2);border:1px solid var(--line);font-size:20px;line-height:1;display:grid;place-items:center;flex:none}
+.map-wrap{border:1px solid var(--line);border-radius:20px;overflow:hidden;background:#0E1A2E;margin-bottom:14px}
+.map{width:100%;height:auto;display:block}
+.map-foot{display:flex;justify-content:space-between;gap:8px;padding:10px 14px;font-size:13px;border-top:1px solid var(--line)}
+.steps{display:grid;gap:8px;margin-bottom:14px}
+.step{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:14px;transition:border-color .3s}
+.step small{display:block;color:var(--muted);font-size:12px}
+.step .dot2{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;flex:none;font-weight:700}
+.step.done{color:var(--ink)}
+.step.done .dot2{background:var(--teal);border-color:var(--teal);color:#032A22}
+.step.now{color:var(--ink);border-color:rgba(245,165,36,.55)}
+.step.now .dot2{border-color:var(--amber);color:var(--amber)}
+.ghost-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.ghost-btn{padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:14px;font-weight:600}
+.miss-card{background:linear-gradient(160deg,rgba(255,92,108,.12),rgba(255,92,108,.02));border-color:rgba(255,92,108,.35)}
+.link-btn{color:var(--muted);font-size:13px;margin-top:10px;text-decoration:underline}
+
+/* recovery and phone test */
+.welcome-card{background:linear-gradient(160deg,rgba(43,212,180,.2),rgba(43,212,180,.04));border-color:rgba(43,212,180,.5)}
+.test-box{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.test-box p{margin-bottom:6px}
+
+/* annotate mode (for stakeholder walk-throughs) */
+body.annotate [data-note]{position:relative;outline:1px dashed rgba(245,165,36,.7);outline-offset:3px}
+body.annotate [data-note]::after{content:attr(data-note);position:absolute;left:0;top:-12px;transform:translateY(-100%);
+  background:var(--amber);color:#1A1202;font-size:11px;font-weight:700;padding:3px 7px;border-radius:6px;white-space:nowrap;z-index:50}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg width="32" height="32" viewBox="0 0 40 40" aria-hidden="true">
+      <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC55C"/><stop offset="1" stop-color="#F5A524"/></linearGradient></defs>
+      <rect width="40" height="40" rx="11" fill="#121C2E" stroke="#24344F"/>
+      <path d="M11 31H29V28L26 25V14L29 11H25V7H21V11H19V7H15V11H11L14 14V25L11 28Z" fill="url(#lg)"/>
+    </svg>
+    <div class="word">ROOK</div>
+    <div class="sub">Dispatch · Missed-ping prototype</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="Ping wait">
+    <button id="spDemo" class="on">Demo · 10 s</button>
+    <button id="spReal">Real · 60 s</button>
+  </div>
+  <label class="toggle"><input type="checkbox" id="snd"> Sound</label>
+  <label class="toggle"><input type="checkbox" id="ann"> Annotate</label>
+  <button class="btn ghost" id="reset">Reset</button>
+  <button class="btn primary" id="send">Send callout</button>
+</header>
+
+<main class="stage">
+
+
+  <!-- ============ HANDLER CONSOLE (desktop) ============ -->
+  <section class="console" data-note="② Handler console (desktop)" aria-label="Handler console">
+    <div class="console-head">
+      <div>
+        <div class="h-title">Live dispatch</div>
+        <div class="small muted">Demo handler · Day shift</div>
+      </div>
+      <div class="spacer"></div>
+      <span class="pill muted">Illustrative sample data</span>
+    </div>
+
+    <div class="callout" data-note="③ Ping queue: ranked order, live timers">
+      <div class="callout-top">
+        <div id="calloutTitle"></div>
+        <span id="calloutState" class="pill muted">Idle</span>
+      </div>
+      <div class="queue" id="queue"></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Responder</th>
+            <th>Area</th>
+            <th>Status</th>
+            <th>Pings (7 d)</th>
+            <th>Taken</th>
+            <th data-note="① Flag: view only">Missed · Own-area not offered</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="foot">Flags are view-only. Click a row for detail. Counts are sample values that echo the 14 Oct analysis. No scores are shown.</div>
+  </section>
+
+  <!-- ============ RESPONDER PHONE ============ -->
+  <div class="device-col">
+    <div class="device" data-note="④ Responder phone: what Vesper sees">
+      <div class="screen" id="screen">
+        <div class="notch"></div>
+        <div class="statusbar"><span id="clock"></span><span class="small muted">5G ▮</span></div>
+
+        <div class="home" id="home"></div>
+
+        <nav class="tabbar">
+          <button class="tab on" data-tab="home"><i></i>Home</button>
+          <button class="tab" data-tab="history"><i></i>Callouts</button>
+        </nav>
+
+        <!-- accepted callout: map, steps, arrival notes -->
+        <div class="active" id="active" aria-label="Accepted callout">
+          <div class="act-top">
+            <button class="iconbtn" id="actBack" aria-label="Minimize">‹</button>
+            <div style="flex:1"><div class="small muted" id="actId"></div><div class="act-title">Structural entry</div></div>
+            <span class="pill teal">Taken by you</span>
+          </div>
+          <div class="map-wrap">
+            <svg class="map" viewBox="0 0 350 250" role="img" aria-label="Area map with callout pin">
+              <rect width="350" height="250" fill="#0E1A2E"/>
+              <g stroke="#1B2B45" stroke-width="10" fill="none">
+                <path d="M0 60H350"/><path d="M0 170H350"/><path d="M90 0V250"/><path d="M250 0V250"/>
+              </g>
+              <g stroke="#15243D" stroke-width="5" fill="none"><path d="M0 115H350"/><path d="M160 0V250"/></g>
+              <rect x="176" y="72" width="54" height="36" rx="6" fill="#16304A"/>
+              <rect x="20" y="182" width="50" height="30" rx="6" fill="#16304A"/>
+              <path d="M40 200 Q120 170 210 120" fill="none" stroke="#2BD4B4" stroke-width="3" stroke-dasharray="7 6"/>
+              <path d="M28 34 L322 34 L332 212 L38 226 Z" fill="rgba(245,165,36,.05)" stroke="#F5A524" stroke-width="1.5" stroke-dasharray="4 5"/>
+              <text x="40" y="26" fill="#F5A524" font-size="11" font-weight="700" letter-spacing="1">OLD TOWN · AREA</text>
+              <g>
+                <circle cx="210" cy="120" r="16" fill="rgba(255,92,108,.2)"/>
+                <circle cx="210" cy="120" r="7" fill="#FF5C6C"/>
+                <text x="224" y="110" fill="#FFB3BB" font-size="11" font-weight="700">CALLOUT</text>
+              </g>
+              <g id="meDot" style="transition:transform 3.5s ease">
+                <circle cx="40" cy="200" r="14" fill="rgba(43,212,180,.25)"/>
+                <circle cx="40" cy="200" r="6" fill="#2BD4B4"/>
+                <text x="52" y="222" fill="#2BD4B4" font-size="11" font-weight="700">YOU</text>
+              </g>
+            </svg>
+            <div class="map-foot"><span><strong id="actEta">~6 min</strong> <span class="muted">estimate</span></span><span class="muted small">Area view only</span></div>
+          </div>
+          <div class="steps" id="actSteps"></div>
+          <div class="card" style="margin-bottom:0"><div class="sec-title" style="margin-top:0">Arrival notes</div><p id="actNotes" style="font-size:14px;color:#C5D2E4"></p></div>
+          <button class="big-btn btn-teal" id="actPrimary"></button>
+          <div class="ghost-row"><button class="ghost-btn" id="actMaps">Open in Maps</button><button class="ghost-btn" id="actCant">Can't make it</button></div>
+        </div>
+
+        <!-- incoming ping -->
+        <div class="incoming" id="incoming" role="alertdialog" aria-live="assertive">
+          <div>
+            <span class="pill amber"><span class="live"></span>Incoming callout</span>
+            <div class="inc-title" id="incTitle"></div>
+            <div class="inc-sub" id="incSub"></div>
+          </div>
+          <div class="ring-wrap">
+            <span class="ripple"></span><span class="ripple d2"></span>
+            <svg viewBox="0 0 200 200" aria-hidden="true">
+              <circle cx="100" cy="100" r="92" stroke="rgba(255,255,255,.1)" stroke-width="10" fill="none"/>
+              <circle id="ringArc" cx="100" cy="100" r="92" stroke="#F5A524" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="578" stroke-dashoffset="0"/>
+            </svg>
+            <div class="t" id="incT">--</div>
+            <div class="lbl">seconds to answer</div>
+          </div>
+          <div style="width:100%">
+            <button class="accept" id="accept">Accept callout</button>
+            <button class="decline" id="decline">Can't take it</button>
+            <p class="inc-foot">If you don't answer in time, the ping moves to the next responder.</p>
+          </div>
+        </div>
+
+        <!-- confirm sheet -->
+        <div class="sheet-bg" id="sheetBg"></div>
+        <div class="sheet" id="sheet" role="dialog" aria-label="Confirm availability">
+          <div class="grab"></div>
+          <div class="check" id="check">✓</div>
+          <div id="sheetBody">
+            <h3>Confirm you're available</h3>
+            <p>Old Town callouts will come back to this phone for a set time, so you can be offered them again.</p>
+            <div class="placeholder">Prototype: the restore length is 4 hours, a placeholder. The real length is not decided.</div>
+            <button class="big-btn btn-teal" id="sheetYes">Yes, I'm available</button>
+            <button class="big-btn" id="sheetNo" style="background:transparent;color:var(--muted);border:1px solid var(--line);margin-top:8px">Not now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="small muted" style="text-align:center;max-width:390px">Responder view. Accept a ping, or let it time out to see the miss path. Use "Send callout" in the top bar to start.</p>
+  </div>
+</main>
+
+<!-- ============ responder detail drawer (handler) ============ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Responder detail">
+  <div class="row-between">
+    <div>
+      <div class="h-sub" id="dArea"></div>
+      <div class="h-title" id="dName"></div>
+    </div>
+    <button class="btn ghost" id="dClose">Close</button>
+  </div>
+  <div id="dBody"></div>
+</aside>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* ---------------- settings ---------------- */
+const THRESH = 3;          // placeholder: missed pings in a row before the phone prompt and the flag
+const RESTORE_HOURS = 4;   // placeholder: length of own-area restore (not decided)
+const RING_LEN = 578;      // circumference of the countdown ring (r = 92)
+const SCRIPT = {           // other responders, scripted for the demo (fraction of the ping wait)
+  ashgrove: { result: 'declined', at: 0.25 },
+  halfmoon: { result: 'missed',   at: 1 },
+  gale:     { result: 'taken',    at: 0.4 }
+};
+const BASE_ORDER = ['ashgrove', 'halfmoon', 'vesper', 'gale'];
+
+/* ---------------- sample data (illustrative) ---------------- */
+const SEED = {
+  ashgrove: { name: 'Corporal Ashgrove', area: 'Old Town',   pings: 13, taken: 10, missed: 1, ownOffered: 37, missRun: 0, restoredUntil: 0 },
+  halfmoon: { name: 'Halfmoon',          area: 'Harborside', pings: 12, taken: 8,  missed: 2, ownOffered: 30, missRun: 0, restoredUntil: 0 },
+  vesper:   { name: 'Vesper',            area: 'Old Town',   pings: 4,  taken: 1,  missed: 3, ownOffered: 10, missRun: 3, restoredUntil: 0 },
+  farlight: { name: 'Farlight',          area: 'Uptown',     pings: 5,  taken: 1,  missed: 3, ownOffered: 6,  missRun: 3, restoredUntil: 0 },
+  undertow: { name: 'The Undertow',      area: 'Harborside', pings: 5,  taken: 1,  missed: 3, ownOffered: 9,  missRun: 3, restoredUntil: 0 },
+  meteor:   { name: 'Meteor Mite',       area: 'Eastgate',   pings: 5,  taken: 1,  missed: 3, ownOffered: 9,  missRun: 3, restoredUntil: 0 },
+  gale:     { name: 'The Gale',          area: 'Eastgate',   pings: 19, taken: 14, missed: 0, ownOffered: 55, missRun: 0, restoredUntil: 0 }
+};
+const AREA_TOTALS0 = { 'Old Town': 38, 'Harborside': 32, 'Uptown': 31, 'Eastgate': 57 };
+const HIST0 = [   // newest first
+  { time: '13:58', callout: 'C-4470', result: 'Missed' },
+  { time: '13:40', callout: 'C-4468', result: 'Missed' },
+  { time: '13:21', callout: 'C-4466', result: 'Missed' },
+  { time: '13:02', callout: 'C-4463', result: 'Taken' }
+];
+
+/* ---------------- state ---------------- */
+let R, AREA, HIST, callout, calloutNo, activeId, ringItem, phoneTab = 'home';
+let activeStep = 0, activeOpen = false, lastMiss = null, testPlayed = false;   // accepted-callout screen and last missed ping
+let speed = 'demo', soundOn = false, openId = null, pending = [], beepTimer = null, wasRestored = false;
+let audioCtx = null;
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const waitSec = () => (speed === 'demo' ? 10 : 60);
+const hhmm = ts => new Date(ts || Date.now()).toTimeString().slice(0, 5);
+const isRestored = r => r.restoredUntil > Date.now();
+const isQuiet = r => r.missRun >= THRESH && !isRestored(r);
+const notOffered = r => AREA[r.area] - r.ownOffered;
+const later = (fn, ms) => { const t = setTimeout(fn, ms); pending.push(t); return t; };
+const clearPending = () => { pending.forEach(clearTimeout); pending = []; };
+const secsLeft = it => Math.max(0, Math.ceil((waitSec() * 1000 - (Date.now() - it.startedAt)) / 1000));
+const LABEL = { taken: 'Taken', declined: 'Turned down', missed: 'Missed' };
+
+function reset() {
+  clearPending(); stopBeeps();
+  R = JSON.parse(JSON.stringify(SEED));
+  AREA = { ...AREA_TOTALS0 };
+  HIST = HIST0.map(h => ({ ...h }));
+  callout = null; calloutNo = 4470; activeId = null; ringItem = null;
+  activeStep = 0; activeOpen = false; lastMiss = null; testPlayed = false;
+  wasRestored = false; openId = null;
+  $('#incoming').classList.remove('show');
+  closeSheet(); closeDrawer();
+  renderAll();
+}
+
+/* ---------------- callout engine ---------------- */
+function queueOrder() {
+  // Restored responders sit at the top of their own area's queue
+  return R.vesper.restoredUntil > Date.now()
+    ? ['vesper', ...BASE_ORDER.filter(x => x !== 'vesper')]
+    : [...BASE_ORDER];
+}
+
+function startCallout() {
+  if (callout && callout.active) return;
+  calloutNo++;
+  AREA['Old Town']++;
+  activeId = null; activeOpen = false;
+  callout = {
+    id: 'C-' + calloutNo, area: 'Old Town', active: true, outcome: null,
+    items: queueOrder().map(rid => ({ rid, status: 'queued', startedAt: 0 }))
+  };
+  toast(`${callout.id} sent to the ranked queue`);
+  nextPing();
+}
+
+function nextPing() {
+  if (!callout || !callout.active) return;
+  const it = callout.items.find(i => i.status === 'queued');
+  if (!it) {
+    callout.active = false; callout.outcome = 'none';
+    toast(`No one took ${callout.id}. Counted as a coverage gap.`);
+    return renderAll();
+  }
+  it.status = 'ringing'; it.startedAt = Date.now();
+  const r = R[it.rid];
+  if (r.area === callout.area) r.ownOffered++;
+  if (it.rid === 'vesper') {
+    showIncoming(it);
+  } else {
+    const s = SCRIPT[it.rid];
+    later(() => resolve(it, s.result), s.at * waitSec() * 1000);
+  }
+  renderAll();
+}
+
+function resolve(item, result) {
+  if (!item || item.status !== 'ringing') return;
+  const c = callout, r = R[item.rid];
+  item.status = result;
+  r.pings++;
+  if (result === 'taken') { r.taken++; r.missRun = 0; }
+  if (result === 'missed') { r.missed++; r.missRun++; }
+
+  if (item.rid === 'vesper') {
+    hideIncoming();
+    HIST.unshift({ time: hhmm(), callout: c.id, result: LABEL[result] });
+    if (result === 'taken') {
+      // the loop closes: first callout taken after the responder confirmed availability
+      if (r.restoredAt && !r.recovered) {
+        r.recovered = hhmm(); r.welcomeSeen = false;
+        toast('Back in the order. This is the first callout taken since you confirmed.');
+      }
+      activeId = c.id; activeStep = 0; activeOpen = true; toast(`You took ${c.id}`);
+    }
+    if (result === 'missed') {
+      lastMiss = { callout: c.id, time: hhmm(), takenBy: null };
+      toast('Missed. The ping moved to the next responder.');
+    }
+    if (result === 'declined') toast('Turned down. The ping moved on.');
+  }
+  if (result === 'missed' && r.missRun === THRESH) {
+    toast(`Flag raised: ${r.name} missed ${THRESH} pings in a row`);
+  }
+
+  if (result === 'taken') {
+    c.active = false; c.outcome = item.rid;
+    c.items.forEach(i => { if (i.status === 'queued') i.status = 'not-pinged'; });
+    if (lastMiss && lastMiss.callout === c.id) lastMiss.takenBy = r.name;
+    if (item.rid !== 'vesper') toast(`${r.name} took ${c.id}`);
+    renderAll();
+  } else {
+    renderAll();
+    later(nextPing, 700);
+  }
+}
+
+/* ---------------- incoming ping on phone ---------------- */
+function showIncoming(item) {
+  ringItem = item;
+  $('#incTitle').textContent = `Callout ${callout.id}`;
+  $('#incSub').textContent = `${callout.area} · Structural entry`;
+  $('#incoming').classList.add('show');
+  startBeeps();
+  if (navigator.vibrate) navigator.vibrate([250, 120, 250]);
+  later(() => resolve(item, 'missed'), waitSec() * 1000);
+}
+
+function hideIncoming() {
+  ringItem = null;
+  $('#incoming').classList.remove('show');
+  stopBeeps();
+}
+
+function beep(force) {
+  if (!soundOn && !force) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = 880; o.connect(g); g.connect(audioCtx.destination);
+    const t = audioCtx.currentTime;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    o.start(t); o.stop(t + 0.4);
+  } catch (e) { /* audio unavailable: stay silent */ }
+}
+function startBeeps() { stopBeeps(); beep(); beepTimer = setInterval(beep, 1400); }
+function stopBeeps() { if (beepTimer) clearInterval(beepTimer); beepTimer = null; }
+
+/* ---------------- render: handler console ---------------- */
+function statusPill(r) {
+  if (isQuiet(r)) return `<span class="pill coral">Quiet</span>`;
+  if (r.recovered) return `<span class="pill teal">Back in order · ${r.recovered}</span>`;
+  if (isRestored(r)) return `<span class="pill teal">Restored · ${hhmm(r.restoredUntil)}</span>`;
+  return `<span class="pill teal">On duty</span>`;
+}
+
+function renderRows() {
+  $('#rows').innerHTML = Object.entries(R).map(([id, r]) => {
+    const flagCls = isQuiet(r) ? 'hot' : (isRestored(r) || r.recovered) ? 'ok' : '';
+    const taken = Math.round((r.taken / r.pings) * 100);
+    const me = id === 'vesper' ? ' <span class="tag">this phone</span>' : '';
+    return `<tr class="row ${openId === id ? 'sel' : ''}" data-id="${id}">
+      <td><strong>${r.name}</strong>${me}</td>
+      <td class="muted">${r.area}</td>
+      <td>${statusPill(r)}</td>
+      <td>${r.pings}</td>
+      <td>${taken}%</td>
+      <td><span class="flag ${flagCls}">Missed ${r.missed} · Not offered ${notOffered(r)}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function queuePill(it) {
+  switch (it.status) {
+    case 'ringing':    return `<span class="pill amber"><span class="live"></span>${it.rid === 'vesper' ? 'Ringing · phone' : `Ringing · ${secsLeft(it)}s`}</span>`;
+    case 'taken':      return it.rid === 'vesper'
+                         ? `<span class="pill teal">${STAGE_LABEL[it.stage || 0]}</span>`
+                         : `<span class="pill teal">Taken</span>`;
+    case 'declined':   return `<span class="pill slate">Turned down</span>`;
+    case 'missed':     return `<span class="pill coral">Missed</span>`;
+    case 'not-pinged': return `<span class="pill muted">Not pinged</span>`;
+    default:           return `<span class="pill muted">Queued</span>`;
+  }
+}
+
+function renderCallout() {
+  const t = $('#calloutTitle'), s = $('#calloutState'), q = $('#queue');
+  if (!callout) {
+    t.innerHTML = `<div class="h-sub">Ready</div><div class="h-title">No live callout</div>
+      <div class="small muted">Press "Send callout" to see the ranked queue and the ping timers.</div>`;
+    s.className = 'pill muted'; s.textContent = 'Idle'; q.innerHTML = '';
+    return;
+  }
+  t.innerHTML = `<div class="h-sub">${callout.id} · ${callout.area}</div>
+    <div class="h-title">Structural entry callout</div>`;
+  const st = callout.active ? ['amber', 'Live']
+    : callout.outcome === 'none' ? ['coral', 'No taker · coverage gap']
+    : ['teal', 'Taken by ' + R[callout.outcome].name];
+  s.className = `pill ${st[0]}`; s.textContent = st[1];
+  q.innerHTML = callout.items.map((it, i) => {
+    const r = R[it.rid];
+    const me = it.rid === 'vesper' ? '<span class="tag">this phone</span>' : '';
+    return `<div class="q-row ${it.status}">
+      <span class="rank">${i + 1}</span>
+      <div><strong>${r.name}</strong>${me}<div class="small muted">${r.area}</div></div>
+      ${queuePill(it)}
+    </div>`;
+  }).join('');
+}
+
+function renderAll() {
+  renderRows();
+  renderCallout();
+  renderPhone();
+  renderActive();
+  if (openId) renderDrawer();
+  $('#send').disabled = !!(callout && callout.active);
+}
+
+/* ---------------- render: responder phone ---------------- */
+function resultPill(res) {
+  const cls = res === 'Taken' ? 'teal' : res === 'Missed' ? 'coral' : 'slate';
+  return `<span class="pill ${cls}">${res}</span>`;
+}
+
+function renderPhone() {
+  const v = R.vesper;
+  const restored = isRestored(v), quiet = isQuiet(v);
+  let html = '';
+  if (phoneTab === 'history') {
+    html = `<div class="ph-title">Callouts</div>
+      <div class="small muted" style="margin-bottom:14px">Last 7 days · results only</div>
+      ${HIST.map(h => `<div class="hist"><span class="mono muted">${h.time}</span><span class="mono">${h.callout}</span>${resultPill(h.result)}</div>`).join('')}`;
+  } else {
+    html = `<div class="greet"><div class="avatar">V</div>
+      <div><div class="small muted">Old Town · Responder</div><h2>Vesper</h2></div></div>`;
+    if (v.recovered && !v.welcomeSeen) {
+      html += `<div class="card welcome-card">
+        <div class="row-between"><span class="pill teal">Back in the order</span><span class="small muted">${v.recovered}</span></div>
+        <h3>Your first callout since you confirmed</h3>
+        <p>You took it at ${v.recovered}. Your phone is working and callouts are coming to you.</p>
+        <button class="link-btn" id="welcomeOk">Thanks</button>
+      </div>`;
+    }
+    if (activeId) {
+      html += `<div class="card active-card">
+        <div class="small muted">Callout ${activeId} · Old Town</div>
+        <h3>You took it</h3>
+        <p>Open to see the area map and arrival steps.</p>
+        <button class="big-btn btn-teal" id="openActive">Open callout</button>
+      </div>`;
+    }
+    if (lastMiss) {
+      html += `<div class="card miss-card">
+        <div class="row-between"><span class="pill coral">Missed</span><span class="small muted">${lastMiss.time}</span></div>
+        <h3>Callout ${lastMiss.callout} moved on</h3>
+        <p>${lastMiss.takenBy ? `${lastMiss.takenBy} took it.` : 'The ping went to the next responder.'} Nothing you need to do.</p>
+        <button class="link-btn" id="dismissMiss">Dismiss</button>
+      </div>`;
+    }
+    if (restored) {
+      html += `<div class="card ok-card">
+        <div class="row-between"><span class="pill teal"><span class="pulse"></span>On duty</span>
+        <span class="small muted">Confirmed ${hhmm(v.restoredUntil - RESTORE_HOURS * 3600e3)}</span></div>
+        <h3>Old Town callouts are on for you</h3>
+        <p>You'll be offered Old Town callouts until ${hhmm(v.restoredUntil)}.</p>
+        <p class="small muted" style="margin-top:8px">Length is a placeholder for this prototype.</p>
+      </div>`;
+    } else if (quiet) {
+      html += `<div class="card quiet-card">
+        <div class="row-between"><span class="pill coral">Quiet</span><span class="small muted">Missed ${v.missRun} in a row</span></div>
+        <h3>You're quiet right now</h3>
+        <p>You have missed several pings, so your place in the order has dropped. Tap to confirm you are available.</p>
+        <button class="big-btn btn-teal" id="openConfirm">I'm available</button>
+        <details>
+          <summary>Why am I seeing this?</summary>
+          <p>A ping you don't answer within ${waitSec()} seconds counts as missed, and misses move you down the order. Confirming puts you back in line for Old Town callouts for a set time.</p>
+        </details>
+        <div class="test-box">
+          ${testPlayed
+            ? `<p class="small">Did you hear that ring?</p>
+               <div class="ghost-row"><button class="ghost-btn" id="heardYes">Yes, I heard it</button><button class="ghost-btn" id="heardNo">No, I didn't</button></div>`
+            : `<div class="row-between"><span class="small muted">${v.testResult ? `Last test: ${v.testResult === 'heard' ? 'heard it' : 'did not hear it'}` : 'Make sure your phone rings'}</span>
+               <button class="link-btn" id="testRing" style="margin-top:0">Test ring</button></div>`}
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="card ok-card">
+        <div class="row-between"><span class="pill teal"><span class="pulse"></span>On duty</span></div>
+        <h3>You're ready for callouts</h3>
+        <p>Old Town callouts come to this phone. You have ${waitSec()} seconds to answer each ping.</p>
+      </div>`;
+    }
+    html += `<div class="sec-title">Recent callouts</div>` +
+      HIST.slice(0, 4).map(h => `<div class="hist"><span class="mono muted">${h.time}</span><span class="mono">${h.callout}</span>${resultPill(h.result)}</div>`).join('');
+  }
+  $('#home').innerHTML = html;
+  $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === phoneTab));
+}
+
+function openSheet() {
+  $('#sheetBody').style.display = '';
+  $('#check').classList.remove('show');
+  $('#sheetYes').disabled = false;
+  $('#sheetBg').classList.add('show');
+  $('#sheet').classList.add('show');
+}
+function closeSheet() {
+  $('#sheetBg').classList.remove('show');
+  $('#sheet').classList.remove('show');
+  $('#check').classList.remove('show');
+}
+
+/* ---------------- render: drawer ---------------- */
+function openDrawer(id) {
+  openId = id;
+  $('#drawer').classList.add('open');
+  $('#scrim').classList.add('show');
+  renderAll();
+}
+function closeDrawer() {
+  openId = null;
+  $('#drawer').classList.remove('open');
+  $('#scrim').classList.remove('show');
+}
+function renderDrawer() {
+  const r = R[openId];
+  $('#dArea').textContent = r.area + ' · responder';
+  $('#dName').textContent = r.name;
+  const phoneLine = openId === 'vesper'
+    ? (isQuiet(r) ? 'Phone shows the "missed several pings" prompt.' : isRestored(r) ? 'Phone shows the restore confirmation.' : 'Phone shows no prompt.')
+    : 'Not on the demo phone.';
+  $('#dBody').innerHTML = `
+    <div>${statusPill(r)}</div>
+    <div class="stat-grid">
+      <div class="stat"><b>${r.missRun}</b><span>Missed in a row</span></div>
+      <div class="stat"><b>${r.missed}</b><span>Missed (7 d)</span></div>
+      <div class="stat"><b>${r.ownOffered}/${AREA[r.area]}</b><span>${r.area} callouts offered</span></div>
+      <div class="stat"><b>${notOffered(r)}</b><span>${r.area} callouts not offered</span></div>
+    </div>
+    <p class="small muted">${phoneLine}</p>
+    ${openId === 'vesper' && r.testResult ? `<p class="small muted">Last phone test: ${r.testResult === 'heard' ? 'heard the ring' : 'did not hear the ring'}.</p>` : ''}
+    ${openId === 'vesper' && r.recovered ? `<p class="small" style="color:var(--teal)">Back in the order since ${r.recovered}: first callout taken after confirming.</p>` : ''}
+    ${isRestored(r) ? `<p class="small" style="margin-top:8px;color:var(--teal)">Own-area offers restored until ${hhmm(r.restoredUntil)}.</p>` : ''}
+    <div class="note-box">View only in this version. Nothing here changes ping timing, ranking or scoring. Scores are not shown to handlers or responders.</div>`;
+}
+
+/* ---------------- render: accepted callout screen ---------------- */
+const STAGE_LABEL = ['Accepted', 'On the way', 'Arrived', 'Closed'];
+const vesperItem = () => callout && callout.items.find(i => i.rid === 'vesper' && i.status === 'taken');
+
+// "Can't make it" is a turn-down: the callout moves to the next responder
+function releaseCallout() {
+  const c = callout, it = vesperItem();
+  activeId = null; activeOpen = false; activeStep = 0;
+  if (it) {
+    it.status = 'declined';
+    R.vesper.taken--;
+    const h = HIST.find(x => x.callout === c.id);
+    if (h) h.result = 'Turned down';
+    c.active = true; c.outcome = null;
+    c.items.forEach(i => { if (i.status === 'not-pinged') i.status = 'queued'; });
+    toast('Released. Counted as a turn-down. The callout moved on.');
+    later(nextPing, 700);
+  }
+  renderAll();
+}
+
+function renderActive() {
+  const el = $('#active');
+  el.classList.toggle('show', !!activeId && activeOpen);
+  if (!activeId) return;
+  $('#actId').textContent = `Callout ${activeId} · Old Town`;
+  const steps = [['Accepted', 'You took the callout'], ['On the way', 'Exact address shown'], ['Arrived', 'Handler closes the callout']];
+  $('#actSteps').innerHTML = steps.map(([t, s], i) =>
+    `<div class="step ${i < activeStep ? 'done' : i === activeStep ? 'now' : ''}">
+       <span class="dot2">${i < activeStep ? '✓' : i + 1}</span>
+       <div>${t}<small>${s}</small></div>
+     </div>`).join('');
+  $('#actNotes').textContent = [
+    'The exact address is sent when you tap "I\'m on my way". Handler notes appear here when added.',
+    'Sample address: 14 Placeholder Row, Old Town. No handler notes on this sample callout.',
+    'Stay on the callout until the handler closes it.'
+  ][activeStep];
+  $('#actPrimary').textContent = ['I\'m on my way', 'I\'ve arrived', 'Done'][activeStep];
+  $('#actEta').textContent = ['~6 min', '~2 min', 'Arrived'][activeStep];
+  $('#meDot').style.transform = ['translate(0px,0px)', 'translate(110px,-40px)', 'translate(170px,-80px)'][activeStep];
+}
+
+/* ---------------- toast ---------------- */
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  $('#toasts').appendChild(t);
+  setTimeout(() => t.remove(), 3800);
+}
+
+/* ---------------- ticker: clock, ring, countdowns, restore expiry ---------------- */
+function tick() {
+  const now = Date.now();
+  $('#clock').textContent = hhmm(now);
+  if (ringItem) {
+    const total = waitSec() * 1000;
+    const left = Math.max(0, total - (now - ringItem.startedAt));
+    $('#ringArc').style.strokeDashoffset = RING_LEN * (1 - left / total);
+    $('#incT').textContent = Math.ceil(left / 1000);
+  }
+  if (callout && callout.active) renderCallout();
+  const isR = R.vesper.restoredUntil > now;
+  if (wasRestored && !isR) {
+    wasRestored = false;
+    toast('Own-area restore has ended for Vesper');
+    renderAll();
+  }
+  if (isR) wasRestored = true;
+}
+
+/* ---------------- wiring ---------------- */
+$('#send').addEventListener('click', () => { startCallout(); });
+$('#reset').addEventListener('click', reset);
+$('#spDemo').addEventListener('click', () => { speed = 'demo'; $('#spDemo').classList.add('on'); $('#spReal').classList.remove('on'); });
+$('#spReal').addEventListener('click', () => { speed = 'real'; $('#spReal').classList.add('on'); $('#spDemo').classList.remove('on'); });
+$('#snd').addEventListener('change', e => { soundOn = e.target.checked; if (soundOn) { try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {} } });
+$('#ann').addEventListener('change', e => document.body.classList.toggle('annotate', e.target.checked));
+
+$('#accept').addEventListener('click', () => { if (ringItem) resolve(ringItem, 'taken'); });
+$('#decline').addEventListener('click', () => { if (ringItem) resolve(ringItem, 'declined'); });
+
+$('#home').addEventListener('click', e => {
+  if (e.target.closest('#openConfirm')) openSheet();
+  if (e.target.closest('#openActive')) { activeOpen = true; renderAll(); }
+  if (e.target.closest('#dismissMiss')) { lastMiss = null; renderPhone(); }
+  if (e.target.closest('#welcomeOk')) { R.vesper.welcomeSeen = true; renderPhone(); }
+  if (e.target.closest('#testRing')) {
+    // plays on this phone regardless of the console's sound setting; the answer goes to support, not scoring
+    beep(true); beep(true);
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    testPlayed = true; renderPhone();
+  }
+  if (e.target.closest('#heardYes') || e.target.closest('#heardNo')) {
+    const heard = !!e.target.closest('#heardYes');
+    R.vesper.testResult = heard ? 'heard' : 'not heard';
+    testPlayed = false;
+    if (!heard) toast('Logged for support as a ring that did not reach the phone.');
+    renderAll();
+  }
+});
+$$('.tab').forEach(t => t.addEventListener('click', () => { phoneTab = t.dataset.tab; renderPhone(); }));
+
+$('#sheetNo').addEventListener('click', closeSheet);
+$('#sheetBg').addEventListener('click', closeSheet);
+$('#sheetYes').addEventListener('click', () => {
+  $('#sheetYes').disabled = true;
+  $('#check').classList.add('show');
+  $('#sheetBody').style.display = 'none';
+  later(() => {
+    closeSheet();
+    R.vesper.restoredUntil = Date.now() + RESTORE_HOURS * 3600e3;
+    R.vesper.missRun = 0;   // confirming clears the run, so the prompt returns only after new misses
+    R.vesper.restoredAt = Date.now(); R.vesper.recovered = null; R.vesper.welcomeSeen = true;
+    wasRestored = true;
+    toast('Old Town callouts are on for Vesper');
+    renderAll();
+  }, 900);
+});
+
+$('#actPrimary').addEventListener('click', () => {
+  const it = vesperItem();
+  if (activeStep < 2) {
+    activeStep++;
+    if (it) it.stage = activeStep;
+    if (activeStep === 2) toast('Arrived. Stay on the callout until the handler closes it.');
+  } else {
+    if (it) it.stage = 3;
+    activeId = null; activeOpen = false; activeStep = 0;
+    toast('Done. Callout closed on your side.');
+  }
+  renderAll();
+});
+$('#actMaps').addEventListener('click', () => toast('Prototype: would open your maps app with the route.'));
+$('#actCant').addEventListener('click', releaseCallout);
+$('#actBack').addEventListener('click', () => { activeOpen = false; renderAll(); });
+
+$('#rows').addEventListener('click', e => {
+  const tr = e.target.closest('tr.row');
+  if (tr) openDrawer(tr.dataset.id);
+});
+$('#dClose').addEventListener('click', closeDrawer);
+$('#scrim').addEventListener('click', closeDrawer);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+/* ---------------- boot ---------------- */
+reset();
+setInterval(tick, 250);
+tick();
+</script>
+</body>
+</html>
